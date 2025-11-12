@@ -1,16 +1,10 @@
 // import { TotalAmountResult } from "@/types/general-types";
-import mysql, { RowDataPacket } from "mysql2/promise";
-import { NextApiRequest, NextApiResponse } from "next";
-import axios from "axios";
-import { cleanValue } from "./get_YTD_google";
 import { formatCurrency } from "@/helper/format_currency";
-
-interface TransactionRow extends RowDataPacket {
-  receiver_amount: string;
-  current_rate: string;
-  status: string;
-  Date: string;
-}
+import axios from "axios";
+import mysql from "mysql2/promise";
+import { NextApiRequest, NextApiResponse } from "next";
+import { cleanValue } from "./get_YTD_google";
+import { TransactionRow } from "@/types/general-types";
 
 interface CleanedAmount {
   nairaAmount: number;

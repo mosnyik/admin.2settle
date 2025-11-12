@@ -1,3 +1,5 @@
+import { RowDataPacket } from "mysql2/promise";
+
 export type TotalAmountResult = { total_amount: number }[];
 
 export interface TransactionData {
@@ -36,3 +38,12 @@ export type ExchangeRate = { rate: number };
 export type ServerData = {
   rate: string;
 };
+
+export interface TransactionRow extends RowDataPacket {
+  receiver_amount: string;
+  current_rate: string;
+  status: string;
+  Date: string;
+  gift_status: string;
+  request_status: string;
+}
