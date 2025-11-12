@@ -1,0 +1,54 @@
+name: Admin.2Settle CI
+
+on:
+  push:
+    branches: [dev, master]
+  pull_request:
+    branches: [dev, master]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Pull down your code
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # 2. Install Node.js (v20)
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
+
+      # 3. Install pnpm globally
+      - name: Install pnpm
+        run: npm install -g pnpm
+
+      # 4. Cache pnpm packages to speed up future builds
+      - name: Cache pnpm store
+        uses: actions/cache@v3
+        with:
+          path: ~/.pnpm-store
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: ${{ runner.os }}-pnpm-
+
+      # 5. Install all dependencies
+      - name: Install dependencies
+        run: pnpm install
+
+      # 6. Run linting
+      - name: Lint code
+        run: pnpm lint
+
+      # 7. Build the Next.js app
+      - name: Build Next.js app
+        run: pnpm build
+
+      # 8. Run tests (if you have any)
+      - name: Run tests
+        run: pnpm test
+
+      # 9. Confirmation
+      - name: ✅ All checks passed
+        run: echo "Ready to merge!"
