@@ -2,7 +2,7 @@ import { Subscription } from "@/types/notifications.types";
 import { NextApiRequest, NextApiResponse } from "next";
 
 // temoprary in memory store for subs
-let subscriptions: Subscription[] = [];
+const subscriptions: Subscription[] = [];
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse

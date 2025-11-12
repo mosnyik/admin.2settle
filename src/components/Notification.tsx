@@ -1,13 +1,13 @@
-import usePushNotifications from "@/hooks/usePushNotifications";
-import React, { useEffect } from "react";
+// import usePushNotifications from "@/hooks/usePushNotifications";
+// import { useEffect } from "react";
 
-const NotificationSetUp = () => {
-  const { registerPushNotifications } = usePushNotifications();
-  useEffect(() => {
-    console.log("Notification service");
-    registerPushNotifications();
-  }, []);
-  return null;
-};
+// const NotificationSetUp = () => {
+//   const { registerPushNotifications } = usePushNotifications();
+//   useEffect(() => {
+//     console.log("Notification service");
+//     registerPushNotifications();
+//   }, []);
+//   return null;
+// };
 
-export default NotificationSetUp;
+// export default NotificationSetUp;

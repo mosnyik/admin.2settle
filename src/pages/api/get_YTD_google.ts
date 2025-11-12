@@ -31,7 +31,7 @@ export default async function handler(
   const range = process.env.RANGE;
   const credentials = getGoogleCredentials();
 
-  let { data: rawRate } = await axios.get<ServerData>(
+  const { data: rawRate } = await axios.get<ServerData>(
     `${apiURL}/api/get_rate`
   );
   const { rate } = rawRate;

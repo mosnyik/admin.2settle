@@ -1,7 +1,6 @@
 // import { TotalAmountResult } from "@/types/general-types";
 import mysql, { RowDataPacket } from "mysql2/promise";
 import { NextApiRequest, NextApiResponse } from "next";
-import { google } from "googleapis";
 import axios from "axios";
 import { cleanValue } from "./get_YTD_google";
 import { formatCurrency } from "@/helper/format_currency";
@@ -64,7 +63,7 @@ export default async function handler(
 
   let connection;
   try {
-    let repsonse = await axios.get<{
+    const repsonse = await axios.get<{
       status: boolean;
       data: { nairaAmount: number; dollarAmount: number };
     }>(`${apiURL}/api/get_YTD_google`);

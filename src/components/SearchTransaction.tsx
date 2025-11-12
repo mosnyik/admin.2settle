@@ -1,4 +1,3 @@
-import React from "react";
 import { useForm } from "react-hook-form";
 import { TransactionData } from "@/types/general-types";
 
@@ -54,6 +53,7 @@ const SearchTransaction = ({ handleBlur }: Prop) => {
       setError("searchTerm", {
         message: "Something went wrong. Please try again.",
       });
+      console.log("There is an err", err)
     }
   };
 
