@@ -35,14 +35,6 @@ const calculateTotalAmounts = (amounts: CleanedAmount[]) => {
     dollar: dollarTotal.toLocaleString(undefined, { minimumFractionDigits: 2 }),
   };
 };
-
-// const getGoogleCredentials = () => {
-//   const base64 = process.env.GOOGLE_CREDENTIALS_BASE64;
-//   if (!base64)
-//     throw new Error("Google credentials missing in environment variables");
-//   return JSON.parse(Buffer.from(base64, "base64").toString("utf-8"));
-// };
-
 const apiURL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 
 export default async function handler(
