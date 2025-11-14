@@ -10,14 +10,7 @@ import {
 } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import axios from "axios";
-
-interface Notification {
-  id: number;
-  title: string;
-  body: string;
-  is_read: number;
-  created_at: string;
-}
+import { Notification } from "@/types/notifications.types";
 
 export default function NotificationBell() {
   const [notifications, setNotifications] = useState<Notification[]>([]);

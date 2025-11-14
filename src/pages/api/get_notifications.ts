@@ -1,5 +1,7 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import mysql from "mysql2/promise";
+import { NotificationRow } from "@/types/notifications.types";
+
 
 export default async function handler(
   req: NextApiRequest,
@@ -21,7 +23,7 @@ export default async function handler(
   try {
     connection = await mysql.createConnection(dbConfig);
 
-    const [notifications] = await connection.query<any[]>(
+    const [notifications] = await connection.query<NotificationRow[]>(
       "SELECT id, title, body, is_read, created_at FROM notifications_list ORDER BY created_at DESC LIMIT 50"
     );
 

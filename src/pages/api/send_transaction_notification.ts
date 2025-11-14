@@ -26,6 +26,7 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import mysql from "mysql2/promise";
 import webpush from "web-push";
+import { NotificationRow } from "@/types/notifications.types";
 
 export default async function handler(
   req: NextApiRequest,
@@ -50,14 +51,14 @@ export default async function handler(
     connection = await mysql.createConnection(dbConfig);
 
     // Fetch all subscriptions from database
-    const [subscriptions] = await connection.query<any[]>(
+    const [subscriptions] = await connection.query<NotificationRow[]>(
       "SELECT endpoint, p256dh, auth, expirationTime FROM notifications_subscriptions"
     );
 
     const payload = JSON.stringify({ title, body });
 
     // Send notifications to all subscriptions
-    const sendPromises = (subscriptions as any[]).map((sub) => {
+    const sendPromises = subscriptions.map((sub) => {
       const subscription = {
         endpoint: sub.endpoint,
         keys: {
