@@ -47,3 +47,23 @@ export interface TransactionRow extends RowDataPacket {
   gift_status: string;
   request_status: string;
 }
+
+export interface GiftSummaryResponse {
+  success: boolean;
+  count: number;
+  totalNaira: number;
+  totalDollar: number;
+}
+
+export interface RequestSummaryResponse {
+  success: boolean;
+  count: number;
+  totalNaira: number;
+  totalDollar: number;
+}
+
+export interface SummaryRow extends RowDataPacket {
+  count: number;
+  total_naira: string;
+  total_dollar: string;
+}

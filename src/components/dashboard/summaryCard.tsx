@@ -35,26 +35,63 @@ function SummaryCard({ handleError }: SummaryCardProps) {
   const [monthly, setMonthly] = useState();
   const [dollarMonthly, setDollarMonthly] = useState();
 
+  const [giftCount, setGiftCount] = useState(0);
+  const [giftTotalNaira, setGiftTotalNaira] = useState(0);
+  const [giftTotalDollar, setGiftTotalDollar] = useState(0);
+
+  const [requestCount, setRequestCount] = useState(0);
+  const [requestTotalNaira, setRequestTotalNaira] = useState(0);
+  const [requestTotalDollar, setRequestTotalDollar] = useState(0);
+
   useEffect(() => {
     const fetchAllData = async () => {
       try {
         setIsLoading(true);
-        await axios
-          .get("/api/total_volume_tyd")
-          .then((response) => {
-            setYtd(response.data.YTDnaira);
-            setDollarYtd(response.data.YTDdollar);
-            setDaily(response.data.Dailynaira);
-            setDollarDaily(response.data.Dailydollar);
-            setWeekly(response.data.Weeklynaira);
-            setDollarWeekly(response.data.Weeklydollar);
-            setMonthly(response.data.Monthlynaira);
-            setDollarMonthly(response.data.Monthlydollar);
-          })
-          .catch((error) => {
-            handleError(error);
-          });
+
+        const [volumeRes, giftRes, requestRes] = await Promise.all([
+          axios.get("/api/total_volume_tyd"),
+          axios.get("/api/get_gift_summary"),
+          axios.get("/api/get_request_summary"),
+        ]);
+
+        const volumeData = volumeRes.data;
+        const giftData = giftRes.data;
+        const requestData = requestRes.data;
+
+        setYtd(volumeData.YTDnaira);
+        setDollarYtd(volumeData.YTDdollar);
+        setDaily(volumeData.Dailynaira);
+        setDollarDaily(volumeData.Dailydollar);
+        setWeekly(volumeData.Weeklynaira);
+        setDollarWeekly(volumeData.Weeklydollar);
+        setMonthly(volumeData.Monthlynaira);
+        setDollarMonthly(volumeData.Monthlydollar);
+
+        setGiftCount(giftData.count);
+        setGiftTotalNaira(giftData.totalNaira);
+        setGiftTotalDollar(giftData.totalDollar);
+
+        setRequestCount(requestData.count);
+        setRequestTotalNaira(requestData.totalNaira);
+        setRequestTotalDollar(requestData.totalDollar);
+        // await axios
+        //   .get("/api/total_volume_tyd")
+        //   .then((response) => {
+        //     setYtd(response.data.YTDnaira);
+        //     setDollarYtd(response.data.YTDdollar);
+        //     setDaily(response.data.Dailynaira);
+        //     setDollarDaily(response.data.Dailydollar);
+        //     setWeekly(response.data.Weeklynaira);
+        //     setDollarWeekly(response.data.Weeklydollar);
+        //     setMonthly(response.data.Monthlynaira);
+        //     setDollarMonthly(response.data.Monthlydollar);
+        //   })
+        //   .catch((error) => {
+        //     handleError(error);
+        //   });
       } catch (error) {
+        handleError(error as ApiError);
+
         console.error("Error fetching data:", error);
       } finally {
         setIsLoading(false);
@@ -112,7 +149,7 @@ function SummaryCard({ handleError }: SummaryCardProps) {
         ))}
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {["Daily", "Weekly", "Gift", "Request"].map((period) => (
+        {["Daily", "Weekly"].map((period) => (
           <Card key={period}>
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
@@ -142,6 +179,62 @@ function SummaryCard({ handleError }: SummaryCardProps) {
             </CardContent>
           </Card>
         ))}
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-purple-100 rounded-full">
+                <LucideIcons.Gift className="w-4 h-4 text-purple-600" />
+              </div>
+              <div className="flex-1">
+                <span className="text-lg font-bold text-purple-600">
+                  {isLoading
+                    ? Skeleton.summaryCardSkeleton()
+                    : `$${giftTotalDollar.toFixed(2)} (${giftCount} gifts)`}
+                </span>
+                <div className="flex justify-between items-center">
+                  <span className="text-xs text-gray-600">
+                    {isLoading
+                      ? Skeleton.summaryCardSkeleton()
+                      : "Unclaimed Gifts"}
+                  </span>
+                  <span className="text-xs text-gray-600">
+                    {isLoading
+                      ? Skeleton.summaryCardSkeleton()
+                      : `₦${giftTotalNaira.toFixed(2)}`}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-green-100 rounded-full">
+                <LucideIcons.Send className="w-4 h-4 text-green-600" />
+              </div>
+              <div className="flex-1">
+                <span className="text-lg font-bold text-green-600">
+                  {isLoading
+                    ? Skeleton.summaryCardSkeleton()
+                    : `$${requestTotalDollar.toFixed(2)} (${requestCount})`}
+                </span>
+                <div className="flex justify-between items-center">
+                  <span className="text-xs text-gray-600">
+                    {isLoading
+                      ? Skeleton.summaryCardSkeleton()
+                      : "Unfulfilled Requests"}
+                  </span>
+                  <span className="text-xs text-gray-600">
+                    {isLoading
+                      ? Skeleton.summaryCardSkeleton()
+                      : `₦${requestTotalNaira.toFixed(2)}`}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </>
   );
