@@ -1,3 +1,4 @@
+"use client";
 import { useCallback } from "react";
 
 function urlBase64ToUintArray(base64String: string) {
@@ -31,6 +32,8 @@ const usePushNotifications = () => {
     if (permission !== "granted") {
       console.warn("Notifcation permission denied");
     }
+
+    console.log("Push public key", process.env.NEXT_PUBLIC_PUSH_PUBLIC_KEY);
 
     // sub to push notification
     const applicationServerKey = urlBase64ToUintArray(
@@ -67,10 +70,10 @@ const usePushNotifications = () => {
         body: JSON.stringify({ title, body }),
       });
 
-      if(!response.ok){
-        console.error("Failed to send notification")
-      } else{
-        console.log("Notification sent!")
+      if (!response.ok) {
+        console.error("Failed to send notification");
+      } else {
+        console.log("Notification sent!");
       }
     },
     []
