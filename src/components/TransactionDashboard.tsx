@@ -41,6 +41,7 @@ import { TransactionData } from "@/types/general-types";
 import { Eye, EyeOff, Lock } from "lucide-react";
 import SearchTransaction from "./SearchTransaction";
 import TransactionsTable from "./transactions/TransactionsTable";
+import NotificationBell from "./NotificationBell";
 
 export default function TransactionDashboard() {
   const [currentPage, setCurrentPage] = useState(1);
@@ -354,6 +355,7 @@ export default function TransactionDashboard() {
           2Settle Transaction Dashboard
         </h1>
         <div className="space-x-2 space-y-2">
+          <NotificationBell />
           <Dialog>
             <DialogTrigger asChild>
               <Button variant="outline" size="sm" className="text-black">
