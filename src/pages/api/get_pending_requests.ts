@@ -1,46 +1,30 @@
+import { engineClient, mapPayment } from "@/lib/paymentEngine";
 import { NextApiRequest, NextApiResponse } from "next";
-import mysql from "mysql2/promise";
-import { TransactionRow } from "@/types/general-types";
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "GET") {
     res.setHeader("Allow", ["GET"]);
     return res.status(405).end(`Method ${req.method} Not Allowed`);
   }
 
-  const dbConfig = {
-    host: process.env.host,
-    user: process.env.user,
-    password: process.env.password,
-    database: process.env.database,
-  };
-
-  let connection;
   try {
-    connection = await mysql.createConnection(dbConfig);
-    const [rows] = await connection.query<TransactionRow[]>(`
-          SELECT * FROM 2settle_transaction_table
-          WHERE status = 'Successful' AND request_status = "not claimed"
-        `);
+    const { data } = await engineClient.get("/admin/payments", {
+      params: { type: "request", status: "confirmed", limit: 200 },
+    });
+
+    const rows = (data.data.payments as Record<string, unknown>[]).map(mapPayment);
 
     return res.status(200).json({
       success: true,
-      count: rows.length,
+      count: data.data.total,
       data: rows,
     });
   } catch (error) {
-    console.error("Database query error:", error);
+    console.error("Pending requests error:", error);
     return res.status(500).json({
       success: false,
       error: "Internal Server Error",
       details: error instanceof Error ? error.message : String(error),
     });
-  } finally {
-    if (connection) {
-      await connection.end();
-    }
   }
 }

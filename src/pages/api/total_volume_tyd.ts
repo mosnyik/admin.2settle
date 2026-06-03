@@ -1,143 +1,87 @@
-// import { TotalAmountResult } from "@/types/general-types";
 import { formatCurrency } from "@/helper/format_currency";
+import { engineClient } from "@/lib/paymentEngine";
 import axios from "axios";
-import mysql from "mysql2/promise";
 import { NextApiRequest, NextApiResponse } from "next";
 import { cleanValue } from "./get_YTD_google";
-import { TransactionRow } from "@/types/general-types";
 
-interface CleanedAmount {
+interface VolumeAmount {
   nairaAmount: number;
   dollarAmount: number;
 }
 
-export const removeString = (
-  amountString: string,
-  rateString: string
-): CleanedAmount => {
-  const amount = parseFloat(amountString.replace(/[$₦,]/g, "").trim()) || 0;
-  const rate = parseFloat(rateString.replace(/[$₦,]/g, "").trim()) || 0;
-  const dollarAmount = rate > 0 ? amount / rate : 0;
-  return { nairaAmount: amount, dollarAmount };
-};
-
-const calculateTotalAmounts = (amounts: CleanedAmount[]) => {
-  const nairaTotal = amounts.reduce((sum, a) => sum + a.nairaAmount, 0);
-  const dollarTotal = amounts.reduce((sum, a) => sum + a.dollarAmount, 0);
+const calculateTotals = (amounts: VolumeAmount[]) => {
+  const nairaTotal = amounts.reduce((s, a) => s + a.nairaAmount, 0);
+  const dollarTotal = amounts.reduce((s, a) => s + a.dollarAmount, 0);
   return {
     naira: nairaTotal.toLocaleString(undefined, { minimumFractionDigits: 2 }),
     dollar: dollarTotal.toLocaleString(undefined, { minimumFractionDigits: 2 }),
   };
 };
+
 const apiURL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "GET") {
     res.setHeader("Allow", ["GET"]);
     return res.status(405).end(`Method ${req.method} Not Allowed`);
   }
 
-  const dbConfig = {
-    host: process.env.host,
-    user: process.env.user,
-    password: process.env.password,
-    database: process.env.database,
-  };
-
-  let connection;
   try {
-    const repsonse = await axios.get<{
-      status: boolean;
-      data: { nairaAmount: number; dollarAmount: number };
-    }>(`${apiURL}/api/get_YTD_google`);
+    const now = new Date();
+    const startOfYear = new Date(now.getFullYear(), 0, 1).toISOString();
 
-    connection = await mysql.createConnection(dbConfig);
-    const [rows] = await connection.query<TransactionRow[]>(`
-      SELECT * FROM 2settle_transaction_table
-      WHERE status = 'Successful'
-    `);
+    const [googleRes, reconRes] = await Promise.all([
+      axios.get<{ status: boolean; data: { nairaAmount: number; dollarAmount: number } }>(
+        `${apiURL}/api/get_YTD_google`
+      ),
+      engineClient.get("/admin/reports/reconciliation", {
+        params: {
+          from: startOfYear,
+          to: now.toISOString(),
+          status: "settled",
+          format: "json",
+        },
+      }),
+    ]);
 
-    const cleanedAmounts = rows.map((row) =>
-      removeString(row.receiver_amount, row.current_rate)
-    );
+    const payments: Record<string, unknown>[] = reconRes.data.data.payments ?? [];
 
     const today = new Date();
-    const oneWeekAgo = new Date();
-    oneWeekAgo.setDate(today.getDate() - 7);
+    const oneWeekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
 
-    const dailyClean = [];
-    const weeklyClean = [];
-    const monthlyClean = [];
+    const dailyClean: VolumeAmount[] = [];
+    const weeklyClean: VolumeAmount[] = [];
+    const monthlyClean: VolumeAmount[] = [];
+    const ytdClean: VolumeAmount[] = [];
 
-    for (const row of rows) {
-      const [time, date] = row.Date.split(" ");
-      const [day, month, year] = date.split("/");
-      let [hour] = time.slice(0, -2).split(":");
-      const [minute] = time.slice(0, -2).split(":");
-      const ampm = time.slice(-2);
+    for (const p of payments) {
+      const paymentDate = new Date(p.created_at as string);
+      const nairaAmount =
+        Number(p.net_fiat_amount) ||
+        Number(p.fiat_amount) - Number(p.charge_amount ?? 0);
+      const dollarAmount =
+        Number(p.transaction_usd) || nairaAmount / Number(p.rate || 1);
+      const amount: VolumeAmount = { nairaAmount, dollarAmount };
 
-      if (ampm === "PM" && hour !== "12")
-        hour = (parseInt(hour) + 12).toString();
-      if (ampm === "AM" && hour === "12") hour = "00";
-
-      const isoString = `${year}-${month}-${day}T${hour.padStart(
-        2,
-        "0"
-      )}:${minute.padStart(2, "0")}:00`;
-      const dateObj = new Date(isoString);
-
-      const cleaned = removeString(row.receiver_amount, row.current_rate);
-
-      // Daily
-      if (dateObj.toDateString() === today.toDateString()) {
-        dailyClean.push(cleaned);
-      }
-
-      // Weekly
-      if (dateObj >= oneWeekAgo && dateObj <= today) {
-        weeklyClean.push(cleaned);
-      }
-
-      // Monthly
-      if (
-        dateObj.getMonth() === today.getMonth() &&
-        dateObj.getFullYear() === today.getFullYear()
-      ) {
-        monthlyClean.push(cleaned);
-      }
+      ytdClean.push(amount);
+      if (paymentDate.toDateString() === today.toDateString()) dailyClean.push(amount);
+      if (paymentDate >= oneWeekAgo) weeklyClean.push(amount);
+      if (paymentDate >= startOfMonth) monthlyClean.push(amount);
     }
 
-    const { naira: Dailynaira = "0.00", dollar: Dailydollar = "0.00" } =
-      calculateTotalAmounts(dailyClean);
+    const { naira: Dailynaira, dollar: Dailydollar } = calculateTotals(dailyClean);
+    const { naira: Weeklynaira, dollar: Weeklydollar } = calculateTotals(weeklyClean);
+    const { naira: Monthlynaira, dollar: Monthlydollar } = calculateTotals(monthlyClean);
 
-    const { naira: Weeklynaira = "0.00", dollar: Weeklydollar = "0.00" } =
-      calculateTotalAmounts(weeklyClean);
+    const { naira: ytdNairaStr, dollar: ytdDollarStr } = calculateTotals(ytdClean);
+    const googleData = googleRes.data.data;
 
-    const { naira: Monthlynaira = "0.00", dollar: Monthlydollar = "0.00" } =
-      calculateTotalAmounts(monthlyClean);
+    const ytdNairaNum = (cleanValue(ytdNairaStr) as number) + googleData.nairaAmount;
+    const ytdDollarNum = (cleanValue(ytdDollarStr) as number) + googleData.dollarAmount;
 
-    const getYTDValues = (): { YTDnaira: string; YTDdollar: string } => {
-      const { naira, dollar } = calculateTotalAmounts(cleanedAmounts);
-
-      const dollarValue = (
-        parseFloat(cleanValue(dollar).toString()) +
-        repsonse.data.data.dollarAmount
-      ).toFixed(4);
-      const nairaValue = (
-        parseFloat(cleanValue(naira).toString()) +
-        repsonse.data.data.nairaAmount
-      ).toFixed(4);
-      let YTDdollar = dollarValue.toString();
-      let YTDnaira = nairaValue.toString();
-      YTDnaira = formatCurrency(YTDnaira, "NGN", "en-NG");
-      YTDdollar = formatCurrency(YTDdollar, "USD");
-      return { YTDnaira, YTDdollar };
-    };
-
-    const { YTDnaira, YTDdollar } = getYTDValues();
+    const YTDnaira = formatCurrency(ytdNairaNum.toFixed(4), "NGN", "en-NG");
+    const YTDdollar = formatCurrency(ytdDollarNum.toFixed(4), "USD");
 
     return res.status(200).json({
       YTDnaira,
@@ -150,14 +94,10 @@ export default async function handler(
       Monthlydollar,
     });
   } catch (error) {
-    console.error("Database query error:", error);
+    console.error("Volume query error:", error);
     return res.status(500).json({
       error: "Internal Server Error",
       details: error instanceof Error ? error.message : String(error),
     });
-  } finally {
-    if (connection) {
-      await connection.end();
-    }
   }
 }
