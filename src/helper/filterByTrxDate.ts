@@ -1,11 +1,15 @@
 import { TransactionData } from "@/types/general-types";
 
 function toDate(dateString: string): Date {
-  if (!dateString) return new Date();
-  const [timePart, datePart] = dateString.split(" ");
-  const [day, month, year] = datePart
-    .split("/")
-    .map((dateItem) => parseInt(dateItem));
+  if (!dateString) return new Date(0);
+  // ISO 8601 (from payment engine)
+  const iso = new Date(dateString);
+  if (!isNaN(iso.getTime())) return iso;
+  // Legacy format: "HH:MMam/pm dd/mm/yyyy"
+  const parts = dateString.split(" ");
+  if (parts.length < 2) return new Date(0);
+  const [timePart, datePart] = parts;
+  const [day, month, year] = datePart.split("/").map(Number);
   const time = timePart.replace(/([AP]M)$/, " $1");
   return new Date(`${year}-${month}-${day} ${time}`);
 }

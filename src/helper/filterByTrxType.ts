@@ -9,7 +9,8 @@ export default function filterByTrxType(
   const order: Record<string, number> = {
     gift: 1,
     request: 2,
-    transfermoney: 3,
+    transfer: 3,
+    merchant: 4,
   };
 
   return transactions.sort((a, b) => {
