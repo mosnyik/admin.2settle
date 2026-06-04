@@ -45,54 +45,48 @@ function SummaryCard({ handleError }: SummaryCardProps) {
 
   useEffect(() => {
     const fetchAllData = async () => {
+      setIsLoading(true);
       try {
-        setIsLoading(true);
-
-        const [volumeRes, giftRes, requestRes] = await Promise.all([
+        const [volumeResult, giftResult, requestResult] = await Promise.allSettled([
           axios.get("/api/total_volume_tyd"),
           axios.get("/api/get_gift_summary"),
           axios.get("/api/get_request_summary"),
         ]);
 
-        const volumeData = volumeRes.data;
-        const giftData = giftRes.data;
-        const requestData = requestRes.data;
+        if (volumeResult.status === "fulfilled") {
+          const d = volumeResult.value.data;
+          setYtd(d.YTDnaira);
+          setDollarYtd(d.YTDdollar);
+          setDaily(d.Dailynaira);
+          setDollarDaily(d.Dailydollar);
+          setWeekly(d.Weeklynaira);
+          setDollarWeekly(d.Weeklydollar);
+          setMonthly(d.Monthlynaira);
+          setDollarMonthly(d.Monthlydollar);
+        } else {
+          handleError(volumeResult.reason as ApiError);
+        }
 
-        setYtd(volumeData.YTDnaira);
-        setDollarYtd(volumeData.YTDdollar);
-        setDaily(volumeData.Dailynaira);
-        setDollarDaily(volumeData.Dailydollar);
-        setWeekly(volumeData.Weeklynaira);
-        setDollarWeekly(volumeData.Weeklydollar);
-        setMonthly(volumeData.Monthlynaira);
-        setDollarMonthly(volumeData.Monthlydollar);
+        if (giftResult.status === "fulfilled") {
+          const d = giftResult.value.data;
+          setGiftCount(d.count);
+          setGiftTotalNaira(d.totalNaira);
+          setGiftTotalDollar(d.totalDollar);
+        } else {
+          handleError(giftResult.reason as ApiError);
+        }
 
-        setGiftCount(giftData.count);
-        setGiftTotalNaira(giftData.totalNaira);
-        setGiftTotalDollar(giftData.totalDollar);
-
-        setRequestCount(requestData.count);
-        setRequestTotalNaira(requestData.totalNaira);
-        setRequestTotalDollar(requestData.totalDollar);
-        // await axios
-        //   .get("/api/total_volume_tyd")
-        //   .then((response) => {
-        //     setYtd(response.data.YTDnaira);
-        //     setDollarYtd(response.data.YTDdollar);
-        //     setDaily(response.data.Dailynaira);
-        //     setDollarDaily(response.data.Dailydollar);
-        //     setWeekly(response.data.Weeklynaira);
-        //     setDollarWeekly(response.data.Weeklydollar);
-        //     setMonthly(response.data.Monthlynaira);
-        //     setDollarMonthly(response.data.Monthlydollar);
-        //   })
-        //   .catch((error) => {
-        //     handleError(error);
-        //   });
+        if (requestResult.status === "fulfilled") {
+          const d = requestResult.value.data;
+          setRequestCount(d.count);
+          setRequestTotalNaira(d.totalNaira);
+          setRequestTotalDollar(d.totalDollar);
+        } else {
+          handleError(requestResult.reason as ApiError);
+        }
       } catch (error) {
         handleError(error as ApiError);
-
-        console.error("Error fetching data:", error);
+        console.error("Error fetching summary data:", error);
       } finally {
         setIsLoading(false);
       }

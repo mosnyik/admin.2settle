@@ -21,6 +21,7 @@ interface Props {
   filterByDate: () => void;
   filterBySettled: () => void;
   filterByGiftRequestStatus: () => void;
+  onError: (msg: string) => void;
 }
 const TransactionsTable = ({
   isLoading,
@@ -31,6 +32,7 @@ const TransactionsTable = ({
   filterByDate,
   filterBySettled,
   filterByGiftRequestStatus,
+  onError,
 }: Props) => {
   return (
     <Table>
@@ -84,6 +86,7 @@ const TransactionsTable = ({
             setTransactions={setTransactions}
             filteredTransactions={filteredTransactions}
             triggerRefresh={triggerRefresh}
+            onError={onError}
           />
         ) : (
           <TableRow>

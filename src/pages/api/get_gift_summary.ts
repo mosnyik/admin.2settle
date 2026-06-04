@@ -1,56 +1,37 @@
+import { pool } from "@/lib/db";
+import { RowDataPacket } from "mysql2/promise";
 import { NextApiRequest, NextApiResponse } from "next";
-import mysql from "mysql2/promise";
-import { SummaryRow } from "@/types/general-types";
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "GET") {
     res.setHeader("Allow", ["GET"]);
     return res.status(405).end(`Method ${req.method} Not Allowed`);
   }
 
-  const dbConfig = {
-    host: process.env.host,
-    user: process.env.user,
-    password: process.env.password,
-    database: process.env.database,
-  };
-
-  let connection;
   try {
-    connection = await mysql.createConnection(dbConfig);
+    const [rows] = await pool.execute<RowDataPacket[]>(
+      `SELECT
+         COUNT(*) AS count,
+         SUM(fiat_amount - COALESCE(charge_amount, 0)) AS total_naira,
+         SUM(COALESCE(crypto_amount, 0)) AS total_dollar
+       FROM payment_sessions
+       WHERE type = 'gift' AND status = 'settled'`
+    );
 
-    const [rows] = await connection.query<SummaryRow[]>(`
-      SELECT 
-        COUNT(*) as count,
-        SUM(CAST(receiver_amount AS DECIMAL(20, 2))) as total_naira,
-        SUM(CAST(Amount AS DECIMAL(20, 2))) as total_dollar
-      FROM 2settle_transaction_table
-      WHERE status = 'Successful' AND gift_status = 'not claimed'
-    `);
-
-    const giftData = rows[0] || { count: 0, total_naira: 0, total_dollar: 0 };
+    const row = rows[0] as { count: number; total_naira: string; total_dollar: string };
 
     return res.status(200).json({
       success: true,
-      count: giftData.count || 0,
-      totalNaira: giftData.total_naira ? parseFloat(giftData.total_naira) : 0,
-      totalDollar: giftData.total_dollar
-        ? parseFloat(giftData.total_dollar)
-        : 0,
+      count: row.count || 0,
+      totalNaira: row.total_naira ? parseFloat(row.total_naira) : 0,
+      totalDollar: row.total_dollar ? parseFloat(row.total_dollar) : 0,
     });
   } catch (error) {
-    console.error("Database query error:", error);
+    console.error("get_gift_summary error:", error);
     return res.status(500).json({
       success: false,
       error: "Internal Server Error",
       details: error instanceof Error ? error.message : String(error),
     });
-  } finally {
-    if (connection) {
-      await connection.end();
-    }
   }
 }
