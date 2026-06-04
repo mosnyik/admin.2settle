@@ -1,4 +1,5 @@
-import { engineClient } from "@/lib/paymentEngine";
+import { pool } from "@/lib/db";
+import { RowDataPacket } from "mysql2/promise";
 import { NextApiRequest, NextApiResponse } from "next";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -8,26 +9,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const { data } = await engineClient.get("/admin/reports/reconciliation", {
-      params: {
-        type: "request",
-        status: "confirmed",
-        from: "2020-01-01",
-        to: new Date().toISOString(),
-        format: "json",
-      },
-    });
+    const [rows] = await pool.execute<RowDataPacket[]>(
+      `SELECT
+         COUNT(*) AS count,
+         SUM(fiat_amount - COALESCE(charge_amount, 0)) AS total_naira,
+         SUM(COALESCE(crypto_amount, 0)) AS total_dollar
+       FROM payment_sessions
+       WHERE type = 'request' AND status = 'confirmed'`
+    );
 
-    const { count, summary } = data.data;
+    const row = rows[0] as { count: number; total_naira: string; total_dollar: string };
 
     return res.status(200).json({
       success: true,
-      count: count || 0,
-      totalNaira: summary?.totalNetFiat || 0,
-      totalDollar: summary?.totalUsd || 0,
+      count: row.count || 0,
+      totalNaira: row.total_naira ? parseFloat(row.total_naira) : 0,
+      totalDollar: row.total_dollar ? parseFloat(row.total_dollar) : 0,
     });
   } catch (error) {
-    console.error("Request summary error:", error);
+    console.error("get_request_summary error:", error);
     return res.status(500).json({
       success: false,
       error: "Internal Server Error",

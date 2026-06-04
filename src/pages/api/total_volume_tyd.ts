@@ -1,6 +1,7 @@
 import { formatCurrency } from "@/helper/format_currency";
-import { engineClient } from "@/lib/paymentEngine";
+import { pool } from "@/lib/db";
 import axios from "axios";
+import { RowDataPacket } from "mysql2/promise";
 import { NextApiRequest, NextApiResponse } from "next";
 import { cleanValue } from "./get_YTD_google";
 
@@ -28,23 +29,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     const now = new Date();
-    const startOfYear = new Date(now.getFullYear(), 0, 1).toISOString();
+    const startOfYear = new Date(now.getFullYear(), 0, 1);
 
-    const [googleRes, reconRes] = await Promise.all([
-      axios.get<{ status: boolean; data: { nairaAmount: number; dollarAmount: number } }>(
-        `${apiURL}/api/get_YTD_google`
-      ),
-      engineClient.get("/admin/reports/reconciliation", {
-        params: {
-          from: startOfYear,
-          to: now.toISOString(),
-          status: "settled",
-          format: "json",
-        },
-      }),
+    const [googleResult, rows] = await Promise.all([
+      axios
+        .get<{ status: boolean; data: { nairaAmount: number; dollarAmount: number } }>(
+          `${apiURL}/api/get_YTD_google`
+        )
+        .catch(() => null),
+      pool.execute<RowDataPacket[]>(
+        `SELECT fiat_amount, charge_amount, rate, created_at
+         FROM payment_sessions
+         WHERE status = 'settled'
+           AND created_at >= ? AND created_at <= ?`,
+        [startOfYear, now]
+      ).then(([r]) => r),
     ]);
-
-    const payments: Record<string, unknown>[] = reconRes.data.data.payments ?? [];
 
     const today = new Date();
     const oneWeekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -55,13 +55,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const monthlyClean: VolumeAmount[] = [];
     const ytdClean: VolumeAmount[] = [];
 
-    for (const p of payments) {
-      const paymentDate = new Date(p.created_at as string);
-      const nairaAmount =
-        Number(p.net_fiat_amount) ||
-        Number(p.fiat_amount) - Number(p.charge_amount ?? 0);
-      const dollarAmount =
-        Number(p.transaction_usd) || nairaAmount / Number(p.rate || 1);
+    for (const row of rows) {
+      const paymentDate = new Date(row.created_at as string);
+      const nairaAmount = Number(row.fiat_amount) - Number(row.charge_amount ?? 0);
+      const dollarAmount = Number(row.rate) > 0 ? nairaAmount / Number(row.rate) : 0;
       const amount: VolumeAmount = { nairaAmount, dollarAmount };
 
       ytdClean.push(amount);
@@ -75,7 +72,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const { naira: Monthlynaira, dollar: Monthlydollar } = calculateTotals(monthlyClean);
 
     const { naira: ytdNairaStr, dollar: ytdDollarStr } = calculateTotals(ytdClean);
-    const googleData = googleRes.data.data;
+    const googleData = googleResult?.data?.data ?? { nairaAmount: 0, dollarAmount: 0 };
 
     const ytdNairaNum = (cleanValue(ytdNairaStr) as number) + googleData.nairaAmount;
     const ytdDollarNum = (cleanValue(ytdDollarStr) as number) + googleData.dollarAmount;
