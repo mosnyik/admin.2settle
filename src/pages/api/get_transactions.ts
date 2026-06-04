@@ -50,7 +50,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const offset = (page - 1) * limit;
 
   try {
-    const [rows] = await pool.execute<RowDataPacket[]>(
+    const [rows] = await pool.query<RowDataPacket[]>(
       `SELECT
          ps.reference, ps.type, ps.status,
          ps.fiat_amount, ps.crypto, ps.crypto_amount, ps.network,
