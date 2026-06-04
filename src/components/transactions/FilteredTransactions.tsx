@@ -67,13 +67,13 @@ const FilteredTransactions = ({
   //        }
   //      };
 
-  // 1. Sort the transactions: "Processing" first, others follow
+  const IN_PROGRESS = ["created", "pending", "confirming", "confirmed", "settling"];
+
+  // 1. Sort the transactions: in-progress statuses first
   const sortedTransactions = [...filteredTransactions]
     .sort((a, b) => {
-      if (a.status === "Processing") return -1;
-      if (b.status === "Processing") return 1;
-      if (a.gift_status === "Processing") return -1;
-      if (b.gift_status === "Processing") return 1;
+      if (IN_PROGRESS.includes(a.status ?? "")) return -1;
+      if (IN_PROGRESS.includes(b.status ?? "")) return 1;
       return 0;
     })
     .filter(
@@ -104,16 +104,16 @@ const FilteredTransactions = ({
           }
         >
           <SelectTrigger
-            className={`w-[120px] ${
-              transaction.status === "Successful"
+            className={`w-[160px] ${
+              transaction.status === "settled"
                 ? "bg-green-100 text-green-800"
-                : transaction.status === "Processing"
+                : transaction.status === "settling"
+                ? "bg-blue-100 text-blue-800"
+                : IN_PROGRESS.includes(transaction.status ?? "")
                 ? "bg-amber-100 text-amber-800"
-                : transaction.status === "Cancel"
+                : transaction.status === "expired"
                 ? "bg-red-100 text-red-800"
-                : transaction.status === "Uncompleted"
-                ? "bg-gray-100 text-gray-800"
-                : transaction.status === "UnSuccessful"
+                : transaction.status === "failed" || transaction.status === "settlement_reversed"
                 ? "bg-orange-100 text-orange-800"
                 : ""
             }`}
@@ -121,41 +121,17 @@ const FilteredTransactions = ({
             <SelectValue placeholder={transaction.status} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="Successful">Successful</SelectItem>
-            <SelectItem value="Uncompleted">Uncompleted</SelectItem>
-            <SelectItem value="Cancel">Cancel</SelectItem>
-            <SelectItem value="UnSuccessful">Unsuccessful</SelectItem>
+            <SelectItem value="created">Created</SelectItem>
+            <SelectItem value="pending">Pending</SelectItem>
+            <SelectItem value="confirming">Confirming</SelectItem>
+            <SelectItem value="confirmed">Confirmed</SelectItem>
+            <SelectItem value="settling">Settling</SelectItem>
+            <SelectItem value="settled">Settled</SelectItem>
+            <SelectItem value="expired">Expired</SelectItem>
+            <SelectItem value="failed">Failed</SelectItem>
+            <SelectItem value="settlement_reversed">Settlement Reversed</SelectItem>
           </SelectContent>
         </Select>
-        {/* <Select
-          onValueChange={(value) =>
-            handleStatusChange(transaction.transac_id!, value)
-          }
-        >
-          <SelectTrigger
-            className={`w-[120px] ${
-              transaction.status === "Successful"
-                ? "bg-green-100 text-green-800"
-                : transaction.status === "Processing"
-                ? "bg-amber-100  text-amber-800"
-                : transaction.status === "Cancel"
-                ? "bg-red-100 text-red-800"
-                : transaction.status === "Uncompleted"
-                ? "bg-gray-100  text-gray-800"
-                : transaction.status === "UnSuccessful"
-                ? "bg-orange-100  text-orange-800"
-                : "" // Default (no background)
-            }`}
-          >
-            <SelectValue placeholder={transaction.status} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="Successful">Successful</SelectItem>
-            <SelectItem value="Uncompleted">Uncompleted</SelectItem>
-            <SelectItem value="Cancel">Cancel</SelectItem>
-            <SelectItem value="UnSuccessful">Unsuccessful</SelectItem>
-          </SelectContent>
-        </Select> */}
       </TableCell>
       <TableCell>
         <div

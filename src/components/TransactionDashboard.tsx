@@ -105,10 +105,11 @@ export default function TransactionDashboard() {
   };
 
   // fetch transactions
-  const fetchTransactions = useCallback(async (page: number, limit: number) => {
+  const fetchTransactions = useCallback(async (page: number, limit: number, status?: string | null) => {
     try {
       setIsLoading(true);
       setError(null);
+      const statusParam = status ? `&status=${encodeURIComponent(status)}` : "";
       await axios
         .get<{
           transactions: TransactionData[];
@@ -117,7 +118,7 @@ export default function TransactionDashboard() {
             totalPages: number;
             totalItems: number;
           };
-        }>(`/api/get_transactions?page=${page}&limit=${limit}`)
+        }>(`/api/get_transactions?page=${page}&limit=${limit}${statusParam}`)
         .then((res) => {
           setTransactions(res.data.transactions);
           setFilteredTransactions(res.data.transactions);
@@ -159,7 +160,7 @@ export default function TransactionDashboard() {
         router.push("/admin-login");
       } else {
         setPhone(storedPhone || "");
-        fetchTransactions(currentPage, itemsPerPage);
+        fetchTransactions(currentPage, itemsPerPage, statusFilter);
         console.log("Stored number", storedPhone);
       }
     };
@@ -167,20 +168,11 @@ export default function TransactionDashboard() {
     checkLoginStatus();
   }, [phone, router, currentPage, itemsPerPage, fetchTransactions]);
 
-  // filter transactions
+  // re-fetch when status filter changes
   useEffect(() => {
-    if (statusFilter) {
-      setFilteredTransactions(
-        transactions.filter(
-          (transaction) =>
-            transaction.status?.toLocaleLowerCase() ===
-            statusFilter.toLowerCase()
-        )
-      );
-    } else {
-      setFilteredTransactions(transactions);
-    }
-  }, [statusFilter, transactions]);
+    setCurrentPage(1);
+    fetchTransactions(1, itemsPerPage, statusFilter);
+  }, [statusFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // modify pin change
   const handlePinChange = async (e: React.FormEvent) => {
@@ -326,13 +318,13 @@ export default function TransactionDashboard() {
     const sortByDate = filterBySettledDate(transactions, sortDesc);
     setTransactions(sortByDate);
   };
-  // 1. Sort the transactions: "Processing" first, others follow
+  const IN_PROGRESS = ["created", "pending", "confirming", "confirmed", "settling"];
+
+  // 1. Sort the transactions: in-progress statuses first
   const sortedTransactions = [...filteredTransactions]
     .sort((a, b) => {
-      if (a.status === "Processing") return -1;
-      if (b.status === "Processing") return 1;
-      if (a.gift_status === "Processing") return -1;
-      if (b.gift_status === "Processing") return 1;
+      if (IN_PROGRESS.includes(a.status ?? "")) return -1;
+      if (IN_PROGRESS.includes(b.status ?? "")) return 1;
       return 0;
     })
     .filter(
@@ -484,21 +476,23 @@ export default function TransactionDashboard() {
 
           <Select
             onValueChange={(value) =>
-              setStatusFilter(
-                value.toLowerCase() === "all" ? null : value || null
-              )
+              setStatusFilter(value === "all" ? null : value)
             }
           >
-            <SelectTrigger className="w-[150px] text-black">
+            <SelectTrigger className="w-[180px] text-black">
               <SelectValue placeholder="Filter by status" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="All">All Statuses</SelectItem>
-              <SelectItem value="Successful">Successful</SelectItem>
-              <SelectItem value="Processing">Processing</SelectItem>
-              <SelectItem value="Uncompleted">Uncompleted</SelectItem>
-              <SelectItem value="Cancel">Cancel</SelectItem>
-              <SelectItem value="Unsuccessful">Unsuccessful</SelectItem>
+              <SelectItem value="all">All Statuses</SelectItem>
+              <SelectItem value="created">Created</SelectItem>
+              <SelectItem value="pending">Pending</SelectItem>
+              <SelectItem value="confirming">Confirming</SelectItem>
+              <SelectItem value="confirmed">Confirmed</SelectItem>
+              <SelectItem value="settling">Settling</SelectItem>
+              <SelectItem value="settled">Settled</SelectItem>
+              <SelectItem value="expired">Expired</SelectItem>
+              <SelectItem value="failed">Failed</SelectItem>
+              <SelectItem value="settlement_reversed">Settlement Reversed</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -554,7 +548,7 @@ export default function TransactionDashboard() {
             onValueChange={(value) => {
               setItemsPerPage(parseInt(value));
               setCurrentPage(1);
-              fetchTransactions(1, parseInt(value));
+              fetchTransactions(1, parseInt(value), statusFilter);
             }}
           >
             <SelectTrigger className="w-[100px]">
@@ -571,7 +565,7 @@ export default function TransactionDashboard() {
               <p>
                 ⚠️ {error}
                 <button
-                  onClick={() => fetchTransactions(currentPage, itemsPerPage)}
+                  onClick={() => fetchTransactions(currentPage, itemsPerPage, statusFilter)}
                   className="ml-2 text-red-700 underline"
                 >
                   Retry

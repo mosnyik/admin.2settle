@@ -3,13 +3,6 @@ import { TransactionData } from "@/types/general-types";
 import { RowDataPacket } from "mysql2/promise";
 import { NextApiRequest, NextApiResponse } from "next";
 
-function mapStatus(status: string): string {
-  if (status === "settled") return "Successful";
-  if (status === "failed") return "UnSuccessful";
-  if (status === "expired") return "Cancel";
-  return "Processing";
-}
-
 function mapRow(row: RowDataPacket): TransactionData {
   const type = String(row.type ?? "");
   const status = String(row.status ?? "");
@@ -19,7 +12,7 @@ function mapRow(row: RowDataPacket): TransactionData {
     Date: row.created_at ? new Date(row.created_at as string).toISOString() : null,
     Amount: row.crypto_amount != null ? String(row.crypto_amount) : null,
     crypto: String(row.crypto ?? ""),
-    status: mapStatus(status),
+    status,
     charges: row.charge_amount != null ? String(row.charge_amount) : null,
     receiver_name: String(row.account_name ?? ""),
     network: String(row.network ?? ""),
@@ -45,9 +38,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).end(`Method ${req.method} Not Allowed`);
   }
 
+  const VALID_STATUSES = [
+    "created", "pending", "confirming", "confirmed",
+    "settling", "settled", "expired", "failed", "settlement_reversed",
+  ];
+
   const page = parseInt(req.query.page as string) || 1;
   const limit = parseInt(req.query.limit as string) || 10;
   const offset = (page - 1) * limit;
+  const rawStatus = req.query.status as string | undefined;
+  const status = rawStatus && VALID_STATUSES.includes(rawStatus) ? rawStatus : null;
 
   try {
     const [rows] = await pool.query<RowDataPacket[]>(
@@ -62,13 +62,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
        FROM payment_sessions ps
        LEFT JOIN receivers r ON r.id = ps.receiver_id
        LEFT JOIN payers p ON p.id = ps.payer_id
+       ${status ? "WHERE ps.status = ?" : ""}
        ORDER BY ps.created_at DESC
        LIMIT ? OFFSET ?`,
-      [limit, offset]
+      status ? [status, limit, offset] : [limit, offset]
     );
 
-    const [countResult] = await pool.execute<RowDataPacket[]>(
-      "SELECT COUNT(*) AS total FROM payment_sessions"
+    const [countResult] = await pool.query<RowDataPacket[]>(
+      `SELECT COUNT(*) AS total FROM payment_sessions ${status ? "WHERE status = ?" : ""}`,
+      status ? [status] : []
     );
 
     const total = (countResult[0] as { total: number }).total;
