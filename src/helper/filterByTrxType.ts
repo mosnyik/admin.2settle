@@ -10,6 +10,7 @@ export default function filterByTrxType(
     gift: 1,
     request: 2,
     transfer: 3,
+    transfermoney: 3,
     merchant: 4,
   };
 
