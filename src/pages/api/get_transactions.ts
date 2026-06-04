@@ -21,7 +21,7 @@ function mapRow(row: RowDataPacket): TransactionData {
     crypto: String(row.crypto ?? ""),
     status: mapStatus(status),
     charges: row.charge_amount != null ? String(row.charge_amount) : null,
-    receiver_name: String(row.bank_name ?? ""),
+    receiver_name: String(row.account_name ?? ""),
     network: String(row.network ?? ""),
     estimation: row.fiat_amount != null ? String(row.fiat_amount) : null,
     mode_of_payment: type,
@@ -57,7 +57,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
          ps.rate, ps.charge_amount, ps.deposit_address,
          ps.received_amount, ps.settled_fiat_amount,
          ps.settled_at, ps.created_at,
-         r.bank_account AS account_number, r.bank_name,
+         r.bank_account AS account_number, r.bank_name, r.account_name,
          p.chat_id AS payer_chat_id, p.phone AS payer_phone
        FROM payment_sessions ps
        LEFT JOIN receivers r ON r.id = ps.receiver_id
