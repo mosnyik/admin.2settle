@@ -16,6 +16,18 @@ interface Props {
   filteredTransactions: TransactionData[];
   triggerRefresh: () => void;
 }
+function formatDate(iso: string | null | undefined): string {
+  if (!iso) return "N/A";
+  return new Date(iso).toLocaleString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
+
 const FilteredTransactions = ({
   setTransactions,
   filteredTransactions,
@@ -85,7 +97,7 @@ const FilteredTransactions = ({
   return sortedTransactions.map((transaction, index) => (
     <TableRow key={index} className="text-black">
       <TableCell className="hidden md:table-cell">
-        {transaction.Date || "N/A"}
+        {formatDate(transaction.Date)}
       </TableCell>
       <TableCell>{transaction.transac_id || "N/A"}</TableCell>
       <TableCell>
@@ -154,7 +166,7 @@ const FilteredTransactions = ({
         {transaction.charges || "N/A"}
       </TableCell>
       <TableCell>{transaction.receiver_name || "N/A"}</TableCell>
-      <TableCell>{transaction.settled_on || "N/A"}</TableCell>
+      <TableCell>{formatDate(transaction.settled_on)}</TableCell>
     </TableRow>
   ));
 };
