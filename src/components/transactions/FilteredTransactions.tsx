@@ -15,6 +15,7 @@ interface Props {
   setTransactions: Dispatch<SetStateAction<TransactionData[]>>;
   filteredTransactions: TransactionData[];
   triggerRefresh: () => void;
+  onError: (msg: string) => void;
 }
 function formatDate(iso: string | null | undefined): string {
   if (!iso) return "N/A";
@@ -32,6 +33,7 @@ const FilteredTransactions = ({
   setTransactions,
   filteredTransactions,
   triggerRefresh,
+  onError,
 }: Props) => {
   const handleStatusChange = async (
     transactionId: string,
@@ -44,18 +46,19 @@ const FilteredTransactions = ({
       });
 
       if (res.data.success) {
-        // Check backend's success flag
         setTransactions((prevTransactions) =>
           prevTransactions.map((t) =>
             t.transac_id === transactionId ? { ...t, status: newStatus } : t
           )
         );
-        {
-          triggerRefresh();
-        }
+        triggerRefresh();
+      } else {
+        onError(res.data.error ?? "Failed to update status");
       }
-    } catch (error) {
-      console.error("Failed to update transaction status:", error);
+    } catch (error: unknown) {
+      const axiosError = error as { response?: { data?: { error?: string } } };
+      const msg = axiosError.response?.data?.error ?? "Failed to update transaction status";
+      onError(msg);
     }
   };
 

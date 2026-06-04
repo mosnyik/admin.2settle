@@ -498,6 +498,12 @@ export default function TransactionDashboard() {
         </div>
         {/* display transactions table */}
         <div className="border rounded-lg overflow-x-auto">
+          {error && (
+            <div className="mb-3 p-3 bg-red-100 border-l-4 border-red-500 text-red-700 flex justify-between items-center rounded">
+              <span>⚠️ {error}</span>
+              <button onClick={() => setError(null)} className="ml-4 text-red-500 hover:text-red-700 font-bold">✕</button>
+            </div>
+          )}
           <TransactionsTable
             isLoading={isLoading}
             filteredTransactions={filteredTransactions}
@@ -507,6 +513,7 @@ export default function TransactionDashboard() {
             filterByDate={filterByDate}
             filterBySettled={filterBySettled}
             filterByGiftRequestStatus={filterByGiftRequestStatus}
+            onError={(msg) => setError(msg)}
           />
         </div>
         {/* pagination render */}
@@ -560,19 +567,6 @@ export default function TransactionDashboard() {
               <SelectItem value="50">50 / page</SelectItem>
             </SelectContent>
           </Select>
-          {error && (
-            <div className="mb-4 p-4 bg-red-100 border-l-4 border-red-500 text-red-700">
-              <p>
-                ⚠️ {error}
-                <button
-                  onClick={() => fetchTransactions(currentPage, itemsPerPage, statusFilter)}
-                  className="ml-2 text-red-700 underline"
-                >
-                  Retry
-                </button>
-              </p>
-            </div>
-          )}
         </div>
       </div>
     </div>

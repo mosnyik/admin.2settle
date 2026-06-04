@@ -64,7 +64,7 @@ function SummaryCard({ handleError }: SummaryCardProps) {
           setMonthly(d.Monthlynaira);
           setDollarMonthly(d.Monthlydollar);
         } else {
-          console.error("Volume fetch failed:", volumeResult.reason);
+          handleError(volumeResult.reason as ApiError);
         }
 
         if (giftResult.status === "fulfilled") {
@@ -73,7 +73,7 @@ function SummaryCard({ handleError }: SummaryCardProps) {
           setGiftTotalNaira(d.totalNaira);
           setGiftTotalDollar(d.totalDollar);
         } else {
-          console.error("Gift summary fetch failed:", giftResult.reason);
+          handleError(giftResult.reason as ApiError);
         }
 
         if (requestResult.status === "fulfilled") {
@@ -82,7 +82,7 @@ function SummaryCard({ handleError }: SummaryCardProps) {
           setRequestTotalNaira(d.totalNaira);
           setRequestTotalDollar(d.totalDollar);
         } else {
-          console.error("Request summary fetch failed:", requestResult.reason);
+          handleError(requestResult.reason as ApiError);
         }
       } catch (error) {
         handleError(error as ApiError);
