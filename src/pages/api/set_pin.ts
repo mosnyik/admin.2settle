@@ -23,7 +23,7 @@ export default async function handler(
     const formattedPhone = formatPhoneNumber(phone);
 
     await pool.execute(
-      "UPDATE settle_db.supports SET pin_hash = ? WHERE phone = ?",
+      "UPDATE supports SET pin_hash = ? WHERE phone = ?",
       [pin, formattedPhone]
     );
 
