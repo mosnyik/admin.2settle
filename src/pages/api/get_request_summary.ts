@@ -13,9 +13,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       `SELECT
          COUNT(*) AS count,
          SUM(fiat_amount - COALESCE(charge_amount, 0)) AS total_naira,
-         SUM(COALESCE(crypto_amount, 0)) AS total_dollar
+         SUM(
+           CASE
+             WHEN rate IS NOT NULL AND rate > 0
+               THEN (fiat_amount - COALESCE(charge_amount, 0)) / rate
+             ELSE COALESCE(crypto_amount, 0)
+           END
+         ) AS total_dollar
        FROM payment_sessions
-       WHERE type = 'request' AND status = 'settled'`
+       WHERE type = 'request' AND status = 'created'`
     );
 
     const row = rows[0] as { count: number; total_naira: string; total_dollar: string };

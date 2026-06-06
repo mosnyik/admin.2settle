@@ -36,12 +36,10 @@ import filterByGiftStatus from "@/helper/filterByGiftStatus";
 import filterByTrxDate, { filterBySettledDate } from "@/helper/filterByTrxDate";
 import filterByTrxType from "@/helper/filterByTrxType";
 import searchTransaction from "@/helper/searchTrx";
-import usePushNotifications from "@/hooks/usePushNotifications";
 import { TransactionData } from "@/types/general-types";
 import { Eye, EyeOff, Lock } from "lucide-react";
 import SearchTransaction from "./SearchTransaction";
 import TransactionsTable from "./transactions/TransactionsTable";
-import NotificationBell from "./NotificationBell";
 
 export default function TransactionDashboard() {
   const [currentPage, setCurrentPage] = useState(1);
@@ -70,18 +68,6 @@ export default function TransactionDashboard() {
   const [showPin, setShowPin] = useState(false);
   const [pinsMatch, setPinsMatch] = useState(true);
   const [sortDesc, setSortDesc] = useState(false);
-  // reg notification
-  const { registerPushNotifications, sendNotification } =
-    usePushNotifications();
-  useEffect(() => {
-    console.log("We are in the useEffect");
-    registerPushNotifications();
-  }, [registerPushNotifications]);
-
-  useEffect(() => {
-    sendNotification("Transaction Notification", "There is a new transaction");
-  }, [sendNotification]);
-
   // Handle errors
   const handleError = (error: {
     response?: {
@@ -347,7 +333,6 @@ export default function TransactionDashboard() {
           2Settle Transaction Dashboard
         </h1>
         <div className="space-x-2 space-y-2">
-          <NotificationBell />
           <Dialog>
             <DialogTrigger asChild>
               <Button variant="outline" size="sm" className="text-black">

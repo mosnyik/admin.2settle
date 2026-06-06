@@ -18,18 +18,14 @@ vi.mock("@/helper/user_login", () => ({
   parseSupportNumber: vi.fn(() => ["1234"]),
 }));
 
-// Mock mysql connection
-const mockExecute = vi.fn();
-const mockEnd = vi.fn();
+// Mock db pool
+const { mockExecute } = vi.hoisted(() => ({ mockExecute: vi.fn() }));
 
-vi.mock("mysql2/promise", () => {
-  return {
-    createConnection: vi.fn(() => ({
-      execute: mockExecute,
-      end: mockEnd,
-    })),
-  };
-});
+vi.mock("@/lib/db", () => ({
+  pool: {
+    execute: mockExecute,
+  },
+}));
 
 describe("POST /api/admin_login", () => {
   beforeEach(() => {
