@@ -22,7 +22,7 @@ export default async function handler(
     const formattedPhone = formatPhoneNumber(phone);
 
     const [rows] = await pool.execute<mysql.RowDataPacket[]>(
-      "SELECT * FROM settle_db.supports WHERE phone = ?",
+      "SELECT * FROM supports WHERE phone = ?",
       [formattedPhone],
     );
 
