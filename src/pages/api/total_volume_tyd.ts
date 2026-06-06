@@ -38,10 +38,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         )
         .catch(() => null),
       pool.execute<RowDataPacket[]>(
-        `SELECT fiat_amount, charge_amount, rate, created_at
+        `SELECT fiat_amount, charge_amount, rate, settled_at, created_at
          FROM payment_sessions
          WHERE status = 'settled'
-           AND created_at >= ? AND created_at <= ?`,
+           AND COALESCE(settled_at, created_at) >= ? AND COALESCE(settled_at, created_at) <= ?`,
         [startOfYear, now]
       ).then(([r]) => r),
     ]);
@@ -56,7 +56,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const ytdClean: VolumeAmount[] = [];
 
     for (const row of rows) {
-      const paymentDate = new Date(row.created_at as string);
+      const paymentDate = new Date((row.settled_at ?? row.created_at) as string);
       const nairaAmount = Number(row.fiat_amount) - Number(row.charge_amount ?? 0);
       const dollarAmount = Number(row.rate) > 0 ? nairaAmount / Number(row.rate) : 0;
       const amount: VolumeAmount = { nairaAmount, dollarAmount };
