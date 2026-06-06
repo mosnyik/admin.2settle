@@ -15,7 +15,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
          SUM(fiat_amount - COALESCE(charge_amount, 0)) AS total_naira,
          SUM(COALESCE(crypto_amount, 0)) AS total_dollar
        FROM payment_sessions
-       WHERE type = 'gift' AND status = 'settled'`
+       WHERE type = 'gift' AND status = 'confirmed'`
     );
 
     const row = rows[0] as { count: number; total_naira: string; total_dollar: string };
