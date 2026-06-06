@@ -14,7 +14,7 @@ const calculateTotals = (amounts: VolumeAmount[]) => {
   const nairaTotal = amounts.reduce((s, a) => s + a.nairaAmount, 0);
   const dollarTotal = amounts.reduce((s, a) => s + a.dollarAmount, 0);
   return {
-    naira: nairaTotal.toLocaleString(undefined, { minimumFractionDigits: 2 }),
+    naira: formatCurrency(nairaTotal.toFixed(4), "NGN", "en-NG"),
     dollar: dollarTotal.toLocaleString(undefined, { minimumFractionDigits: 2 }),
   };
 };

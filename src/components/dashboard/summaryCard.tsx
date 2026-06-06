@@ -4,6 +4,7 @@ import * as LucideIcons from "lucide-react";
 import axios from "axios";
 
 import Skeleton from "../transactions/Skeleton";
+import { formatCurrency } from "@/helper/format_currency";
 // import useVolumeStore from "@/stores.ts/volumeStore";
 // 1. First define a type for your error object
 export interface ApiError {
@@ -194,7 +195,7 @@ function SummaryCard({ handleError }: SummaryCardProps) {
                   <span className="text-xs text-gray-600">
                     {isLoading
                       ? Skeleton.summaryCardSkeleton()
-                      : `₦${giftTotalNaira.toFixed(2)}`}
+                      : formatCurrency(giftTotalNaira.toFixed(4), "NGN", "en-NG")}
                   </span>
                 </div>
               </div>
@@ -222,7 +223,7 @@ function SummaryCard({ handleError }: SummaryCardProps) {
                   <span className="text-xs text-gray-600">
                     {isLoading
                       ? Skeleton.summaryCardSkeleton()
-                      : `₦${requestTotalNaira.toFixed(2)}`}
+                      : formatCurrency(requestTotalNaira.toFixed(4), "NGN", "en-NG")}
                   </span>
                 </div>
               </div>
