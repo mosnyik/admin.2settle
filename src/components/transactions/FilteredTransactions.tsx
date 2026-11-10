@@ -84,21 +84,13 @@ const FilteredTransactions = ({
 
   const IN_PROGRESS = ["created", "pending", "confirming", "confirmed", "settling"];
 
-  // 1. Sort the transactions: in-progress statuses first
-  const sortedTransactions = [...filteredTransactions]
-    .sort((a, b) => {
-      if (IN_PROGRESS.includes(a.status ?? "")) return -1;
-      if (IN_PROGRESS.includes(b.status ?? "")) return 1;
-      return 0;
-    })
-    .filter(
-      (transaction) =>
-        transaction.transac_id !== null && transaction.transac_id !== undefined
-    );
+  // Preserve the selected order supplied by the dashboard/API.
+  const visibleTransactions = filteredTransactions.filter(
+    (transaction) => transaction.transac_id != null
+  );
 
-  // 2. Map the sorted transactions
-  return sortedTransactions.map((transaction, index) => (
-    <TableRow key={index} className="text-black">
+  return visibleTransactions.map((transaction) => (
+    <TableRow key={transaction.transac_id} className="text-black">
       <TableCell className="hidden md:table-cell">
         {formatDate(transaction.Date)}
       </TableCell>

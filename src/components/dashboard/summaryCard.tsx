@@ -2,9 +2,11 @@ import React, { useEffect, useState } from "react";
 import { Card, CardContent } from "../ui/card";
 import * as LucideIcons from "lucide-react";
 import axios from "axios";
+import MonthlyVolumeCard from "./MonthlyVolumeCard";
+import WeeklyVolumeCard from "./WeeklyVolumeCard";
 
 import Skeleton from "../transactions/Skeleton";
-import { formatCurrency } from "@/helper/format_currency";
+import PendingSummaryCard from "./PendingSummaryCard";
 // import useVolumeStore from "@/stores.ts/volumeStore";
 // 1. First define a type for your error object
 export interface ApiError {
@@ -30,61 +32,15 @@ function SummaryCard({ handleError }: SummaryCardProps) {
   const [daily, setDaily] = useState();
   const [dollarDaily, setDollarDaily] = useState();
 
-  const [weekly, setWeekly] = useState();
-  const [dollarWeekly, setDollarWeekly] = useState();
-
-  const [monthly, setMonthly] = useState();
-  const [dollarMonthly, setDollarMonthly] = useState();
-
-  const [giftCount, setGiftCount] = useState(0);
-  const [giftTotalNaira, setGiftTotalNaira] = useState(0);
-  const [giftTotalDollar, setGiftTotalDollar] = useState(0);
-
-  const [requestCount, setRequestCount] = useState(0);
-  const [requestTotalNaira, setRequestTotalNaira] = useState(0);
-  const [requestTotalDollar, setRequestTotalDollar] = useState(0);
-
   useEffect(() => {
     const fetchAllData = async () => {
       setIsLoading(true);
       try {
-        const [volumeResult, giftResult, requestResult] = await Promise.allSettled([
-          axios.get("/api/total_volume_tyd"),
-          axios.get("/api/get_gift_summary"),
-          axios.get("/api/get_request_summary"),
-        ]);
-
-        if (volumeResult.status === "fulfilled") {
-          const d = volumeResult.value.data;
-          setYtd(d.YTDnaira);
-          setDollarYtd(d.YTDdollar);
-          setDaily(d.Dailynaira);
-          setDollarDaily(d.Dailydollar);
-          setWeekly(d.Weeklynaira);
-          setDollarWeekly(d.Weeklydollar);
-          setMonthly(d.Monthlynaira);
-          setDollarMonthly(d.Monthlydollar);
-        } else {
-          handleError(volumeResult.reason as ApiError);
-        }
-
-        if (giftResult.status === "fulfilled") {
-          const d = giftResult.value.data;
-          setGiftCount(d.count);
-          setGiftTotalNaira(d.totalNaira);
-          setGiftTotalDollar(d.totalDollar);
-        } else {
-          handleError(giftResult.reason as ApiError);
-        }
-
-        if (requestResult.status === "fulfilled") {
-          const d = requestResult.value.data;
-          setRequestCount(d.count);
-          setRequestTotalNaira(d.totalNaira);
-          setRequestTotalDollar(d.totalDollar);
-        } else {
-          handleError(requestResult.reason as ApiError);
-        }
+        const { data: d } = await axios.get("/api/total_volume_tyd");
+        setYtd(d.YTDnaira);
+        setDollarYtd(d.YTDdollar);
+        setDaily(d.Dailynaira);
+        setDollarDaily(d.Dailydollar);
       } catch (error) {
         handleError(error as ApiError);
         console.error("Error fetching summary data:", error);
@@ -102,17 +58,12 @@ function SummaryCard({ handleError }: SummaryCardProps) {
     if (period === "Daily" && currency === "naira") return daily;
     if (period === "Daily" && currency === "dollar") return dollarDaily;
 
-    if (period === "Weekly" && currency === "naira") return weekly;
-    if (period === "Weekly" && currency === "dollar") return dollarWeekly;
-
-    if (period === "Monthly" && currency === "naira") return monthly;
-    if (period === "Monthly" && currency === "dollar") return dollarMonthly;
     return "0.00"; // default
   };
   return (
     <>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4">
-        {["YTD", "Monthly"].map((period) => (
+        {["YTD"].map((period) => (
           <Card key={period}>
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
@@ -142,9 +93,10 @@ function SummaryCard({ handleError }: SummaryCardProps) {
             </CardContent>
           </Card>
         ))}
+        <MonthlyVolumeCard />
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {["Daily", "Weekly"].map((period) => (
+        {["Daily"].map((period) => (
           <Card key={period}>
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
@@ -174,62 +126,9 @@ function SummaryCard({ handleError }: SummaryCardProps) {
             </CardContent>
           </Card>
         ))}
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-purple-100 rounded-full">
-                <LucideIcons.Gift className="w-4 h-4 text-purple-600" />
-              </div>
-              <div className="flex-1">
-                <span className="text-lg font-bold text-purple-600">
-                  {isLoading
-                    ? Skeleton.summaryCardSkeleton()
-                    : `$${giftTotalDollar.toFixed(2)} (${giftCount} gifts)`}
-                </span>
-                <div className="flex justify-between items-center">
-                  <span className="text-xs text-gray-600">
-                    {isLoading
-                      ? Skeleton.summaryCardSkeleton()
-                      : "Unclaimed Gifts"}
-                  </span>
-                  <span className="text-xs text-gray-600">
-                    {isLoading
-                      ? Skeleton.summaryCardSkeleton()
-                      : formatCurrency(giftTotalNaira.toFixed(4), "NGN", "en-NG")}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-green-100 rounded-full">
-                <LucideIcons.Send className="w-4 h-4 text-green-600" />
-              </div>
-              <div className="flex-1">
-                <span className="text-lg font-bold text-green-600">
-                  {isLoading
-                    ? Skeleton.summaryCardSkeleton()
-                    : `$${requestTotalDollar.toFixed(2)} (${requestCount})`}
-                </span>
-                <div className="flex justify-between items-center">
-                  <span className="text-xs text-gray-600">
-                    {isLoading
-                      ? Skeleton.summaryCardSkeleton()
-                      : "Unfulfilled Requests"}
-                  </span>
-                  <span className="text-xs text-gray-600">
-                    {isLoading
-                      ? Skeleton.summaryCardSkeleton()
-                      : formatCurrency(requestTotalNaira.toFixed(4), "NGN", "en-NG")}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <WeeklyVolumeCard />
+        <PendingSummaryCard kind="gift" />
+        <PendingSummaryCard kind="request" />
       </div>
     </>
   );

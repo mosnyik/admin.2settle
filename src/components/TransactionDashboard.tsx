@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button";
 import axios from "axios";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import SummaryCard from "./dashboard/summaryCard";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -33,8 +33,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import filterByGiftStatus from "@/helper/filterByGiftStatus";
-import filterByTrxDate, { filterBySettledDate } from "@/helper/filterByTrxDate";
-import filterByTrxType from "@/helper/filterByTrxType";
+import { filterBySettledDate } from "@/helper/filterByTrxDate";
 import searchTransaction from "@/helper/searchTrx";
 import { TransactionData } from "@/types/general-types";
 import { Eye, EyeOff, Lock } from "lucide-react";
@@ -45,7 +44,6 @@ export default function TransactionDashboard() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
-  const [transactions, setTransactions] = useState<TransactionData[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
 
   const triggerRefresh = () => {
@@ -60,6 +58,7 @@ export default function TransactionDashboard() {
     TransactionData[]
   >([]);
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  const [transactionType, setTransactionType] = useState("all");
   const [error, setError] = useState<string | null>(null);
 
   const [itemsPerPage, setItemsPerPage] = useState(10);
@@ -68,8 +67,10 @@ export default function TransactionDashboard() {
   const [showPin, setShowPin] = useState(false);
   const [pinsMatch, setPinsMatch] = useState(true);
   const [sortDesc, setSortDesc] = useState(false);
+  const [dateSort, setDateSort] = useState<"asc" | "desc">("desc");
+  const [isDateSortActive, setIsDateSortActive] = useState(true);
   // Handle errors
-  const handleError = (error: {
+  const handleError = useCallback((error: {
     response?: {
       status: number;
       data: { message: string };
@@ -88,77 +89,48 @@ export default function TransactionDashboard() {
     } else {
       setError("Request configuration error");
     }
-  };
-
-  // fetch transactions
-  const fetchTransactions = useCallback(async (page: number, limit: number, status?: string | null) => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      const statusParam = status ? `&status=${encodeURIComponent(status)}` : "";
-      await axios
-        .get<{
-          transactions: TransactionData[];
-          pagination: {
-            currentPage: number;
-            totalPages: number;
-            totalItems: number;
-          };
-        }>(`/api/get_transactions?page=${page}&limit=${limit}${statusParam}`)
-        .then((res) => {
-          setTransactions(res.data.transactions);
-          setFilteredTransactions(res.data.transactions);
-          setTotalPages(res.data.pagination.totalPages);
-        })
-        .catch((error) => {
-          handleError(error);
-        });
-    } catch (error) {
-      if (axios.isAxiosError(error)) {
-        if (error.response) {
-          setError(
-            `Server error: ${error.response.status} - ${
-              error.response.data?.message || "No additional details"
-            }`
-          );
-        } else if (error.request) {
-          setError("Network error - please check your connection");
-        } else {
-          setError("Request configuration error");
-        }
-      } else {
-        setError("An unexpected error occurred");
-      }
-      console.error("Error details:", error);
-    } finally {
-      setIsLoading(false);
-    }
   }, []);
 
-  // check login user/authentication
+  // Fetch sorted pages; abort old requests when filters or ordering change.
+  const fetchTransactions = useCallback(async (
+    page: number, limit: number, status: string | null, signal: AbortSignal
+  ) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const { data } = await axios.get<{
+        transactions: TransactionData[];
+        pagination: { currentPage: number; totalPages: number; totalItems: number };
+      }>("/api/get_transactions", {
+        params: { page, limit, status: status || undefined, dateOrder: dateSort, type: transactionType === "all" ? undefined : transactionType },
+        signal,
+      });
+      if (signal.aborted) return;
+      setFilteredTransactions(data.transactions);
+      setTotalPages(data.pagination.totalPages);
+      setIsDateSortActive(true);
+    } catch (error) {
+      if (signal.aborted) return;
+      if (axios.isAxiosError(error)) handleError(error);
+      else setError("An unexpected error occurred");
+    } finally {
+      if (!signal.aborted) setIsLoading(false);
+    }
+  }, [dateSort, transactionType, handleError]);
+
   useEffect(() => {
-    const checkLoginStatus = () => {
-      const storedPhone = localStorage.getItem("phone");
-      const userLoggedIn = localStorage.getItem("userLoggedIn");
+    const loggedIn = localStorage.getItem("userLoggedIn") === "true";
+    setIsLoggedIn(loggedIn);
+    if (!loggedIn) router.push("/admin-login");
+    else setPhone(localStorage.getItem("phone") || "");
+  }, [router]);
 
-      setIsLoggedIn(userLoggedIn === "true");
-      if (userLoggedIn !== "true") {
-        router.push("/admin-login");
-      } else {
-        setPhone(storedPhone || "");
-        fetchTransactions(currentPage, itemsPerPage, statusFilter);
-        console.log("Stored number", storedPhone);
-      }
-    };
-
-    checkLoginStatus();
-  }, [phone, router, currentPage, itemsPerPage, fetchTransactions]);
-
-  // re-fetch when status filter changes
   useEffect(() => {
-    setCurrentPage(1);
-    fetchTransactions(1, itemsPerPage, statusFilter);
-  }, [statusFilter]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (!isLoggedIn) return;
+    const controller = new AbortController();
+    fetchTransactions(currentPage, itemsPerPage, statusFilter, controller.signal);
+    return () => controller.abort();
+  }, [isLoggedIn, currentPage, itemsPerPage, statusFilter, fetchTransactions, refreshKey]);
 
   // modify pin change
   const handlePinChange = async (e: React.FormEvent) => {
@@ -288,41 +260,29 @@ export default function TransactionDashboard() {
     setSortDesc(!sortDesc);
   }
 
-  const filterByType = (transactions: TransactionData[]): void => {
-    toggleSorted();
-    const sortedTrxByType = filterByTrxType(transactions, sortDesc);
-    setTransactions(sortedTrxByType);
-  };
-
   const filterByDate = (): void => {
-    toggleSorted();
-    const sortByDate = filterByTrxDate(transactions, sortDesc);
-    setTransactions(sortByDate);
+    setCurrentPage(1);
+    setIsDateSortActive(true);
+    if (!isDateSortActive && dateSort === "asc") {
+      // Re-fetch if another column changed the visible order but the requested
+      // date direction is already ascending.
+      triggerRefresh();
+    } else {
+      setDateSort(isDateSortActive && dateSort === "asc" ? "desc" : "asc");
+    }
   };
   const filterBySettled = (): void => {
     toggleSorted();
-    const sortByDate = filterBySettledDate(transactions, sortDesc);
-    setTransactions(sortByDate);
+    const sortByDate = filterBySettledDate([...filteredTransactions], sortDesc);
+    setFilteredTransactions(sortByDate);
+    setIsDateSortActive(false);
   };
-  const IN_PROGRESS = ["created", "pending", "confirming", "confirmed", "settling"];
-
-  // 1. Sort the transactions: in-progress statuses first
-  const sortedTransactions = [...filteredTransactions]
-    .sort((a, b) => {
-      if (IN_PROGRESS.includes(a.status ?? "")) return -1;
-      if (IN_PROGRESS.includes(b.status ?? "")) return 1;
-      return 0;
-    })
-    .filter(
-      (transaction) =>
-        transaction.transac_id !== null && transaction.transac_id !== undefined
-    );
-
   const filterByGiftRequestStatus = (): void => {
     toggleSorted();
 
-    const sortedByGift = filterByGiftStatus(sortedTransactions, sortDesc);
-    setTransactions(sortedByGift);
+    const sortedByGift = filterByGiftStatus([...filteredTransactions], sortDesc);
+    setFilteredTransactions(sortedByGift);
+    setIsDateSortActive(false);
   };
 
   return (
@@ -460,9 +420,10 @@ export default function TransactionDashboard() {
           />
 
           <Select
-            onValueChange={(value) =>
-              setStatusFilter(value === "all" ? null : value)
-            }
+            onValueChange={(value) => {
+              setStatusFilter(value === "all" ? null : value);
+              setCurrentPage(1);
+            }}
           >
             <SelectTrigger className="w-[180px] text-black">
               <SelectValue placeholder="Filter by status" />
@@ -492,10 +453,15 @@ export default function TransactionDashboard() {
           <TransactionsTable
             isLoading={isLoading}
             filteredTransactions={filteredTransactions}
-            setTransactions={setTransactions}
+            setTransactions={setFilteredTransactions}
             triggerRefresh={triggerRefresh}
-            filterByTrxType={filterByType}
+            transactionType={transactionType}
+            onTransactionTypeChange={(type) => {
+              setTransactionType(type);
+              setCurrentPage(1);
+            }}
             filterByDate={filterByDate}
+            dateSort={isDateSortActive ? dateSort : null}
             filterBySettled={filterBySettled}
             filterByGiftRequestStatus={filterByGiftRequestStatus}
             onError={(msg) => setError(msg)}
@@ -540,7 +506,6 @@ export default function TransactionDashboard() {
             onValueChange={(value) => {
               setItemsPerPage(parseInt(value));
               setCurrentPage(1);
-              fetchTransactions(1, parseInt(value), statusFilter);
             }}
           >
             <SelectTrigger className="w-[100px]">
