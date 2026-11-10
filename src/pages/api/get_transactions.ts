@@ -43,11 +43,30 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     "settling", "settled", "expired", "failed", "settlement_reversed",
   ];
 
+  const dateOrder = req.query.dateOrder ?? "desc";
+  if (dateOrder !== "asc" && dateOrder !== "desc") {
+    return res.status(400).json({ message: "dateOrder must be asc or desc" });
+  }
+  // Interpolate only the validated SQL keyword, never raw query input.
+  const direction = dateOrder === "asc" ? "ASC" : "DESC";
+
+  const transactionType = req.query.type;
+  if (transactionType !== undefined &&
+      (typeof transactionType !== "string" || !["gift", "transfer", "request"].includes(transactionType))) {
+    return res.status(400).json({ message: "type must be gift, transfer or request" });
+  }
+
   const page = parseInt(req.query.page as string) || 1;
   const limit = parseInt(req.query.limit as string) || 10;
   const offset = (page - 1) * limit;
   const rawStatus = req.query.status as string | undefined;
   const status = rawStatus && VALID_STATUSES.includes(rawStatus) ? rawStatus : null;
+
+  const conditions: string[] = [];
+  const filterValues: string[] = [];
+  if (status) { conditions.push("ps.status = ?"); filterValues.push(status); }
+  if (transactionType) { conditions.push("ps.type = ?"); filterValues.push(transactionType); }
+  const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
 
   try {
     const [rows] = await pool.query<RowDataPacket[]>(
@@ -62,15 +81,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
        FROM payment_sessions ps
        LEFT JOIN receivers r ON r.id = ps.receiver_id
        LEFT JOIN payers p ON p.id = ps.payer_id
-       ${status ? "WHERE ps.status = ?" : ""}
-       ORDER BY ps.created_at DESC
+       ${where}
+       ORDER BY ps.created_at ${direction}, ps.id ${direction}
        LIMIT ? OFFSET ?`,
-      status ? [status, limit, offset] : [limit, offset]
+      [...filterValues, limit, offset]
     );
 
     const [countResult] = await pool.query<RowDataPacket[]>(
-      `SELECT COUNT(*) AS total FROM payment_sessions ${status ? "WHERE status = ?" : ""}`,
-      status ? [status] : []
+      `SELECT COUNT(*) AS total FROM payment_sessions ps ${where}`,
+      filterValues
     );
 
     const total = (countResult[0] as { total: number }).total;
