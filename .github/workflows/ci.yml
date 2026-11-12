@@ -23,7 +23,7 @@ jobs:
 
       # 3. Install pnpm globally
       - name: Install pnpm
-        run: npm install -g pnpm
+        run: npm install -g pnpm@10.29.3
 
       # 4. Cache pnpm packages to speed up future builds
       - name: Cache pnpm store
@@ -35,7 +35,7 @@ jobs:
 
       # 5. Install all dependencies
       - name: Install dependencies
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
 
       # 6. Run linting
       - name: Lint code
