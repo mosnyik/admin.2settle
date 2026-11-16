@@ -100,7 +100,12 @@ const FilteredTransactions = ({
           transaction.gift_chatID ?? transaction.transac_id
         }` || "N/A"}
       </TableCell>
-      <TableCell>{truncateString(transaction.Amount ?? "") || "N/A"}</TableCell>
+      <TableCell
+        title={transaction.Amount || undefined}
+        className={transaction.Amount ? "cursor-help" : undefined}
+      >
+        {truncateString(transaction.Amount ?? "") || "N/A"}
+      </TableCell>
       <TableCell className="hidden md:table-cell">
         {transaction.crypto || "N/A"}
       </TableCell>
